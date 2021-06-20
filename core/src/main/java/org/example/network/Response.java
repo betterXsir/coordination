@@ -1,4 +1,4 @@
 package org.example.network;
 
-public class SocketServer {
+public class Response {
 }

@@ -1,6 +1,5 @@
 package org.example.network;
 
-import com.sun.xml.internal.bind.v2.runtime.Coordinator;
 import org.apache.commons.lang3.StringUtils;
 import org.example.expection.CoordinationException;
 
@@ -15,6 +14,7 @@ public class Acceptor implements Runnable {
     private EndPoint endPoint;
     private Selector selector;
     private ServerSocketChannel serverSocketChannel;
+    private Processor processor;
 
     public Acceptor(EndPoint endPoint) {
         this.endPoint = endPoint;
