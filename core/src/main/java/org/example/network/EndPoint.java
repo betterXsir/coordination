@@ -1,22 +1,29 @@
 package org.example.network;
 
+import org.apache.commons.lang3.StringUtils;
+
 public class EndPoint {
     private String address;
     private Integer port;
 
-    public String getAddress() {
-        return address;
+    public EndPoint(Integer port) {
+        this.port = port;
     }
 
-    public void setAddress(String address) {
+    public EndPoint(String address, Integer port) {
         this.address = address;
+        this.port = port;
+    }
+
+    public String getAddress() {
+        return address;
     }
 
     public Integer getPort() {
         return port;
     }
 
-    public void setPort(Integer port) {
-        this.port = port;
+    public String toString() {
+        return StringUtils.isEmpty(address) ? "localhost" : address + ":" + port;
     }
 }
