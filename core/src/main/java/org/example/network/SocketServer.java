@@ -27,7 +27,7 @@ public class SocketServer {
         List<Processor> processors = new ArrayList<>();
         for (int index = 1; index <= networkThreads; index++) {
             nextProcessorId += 1;
-            processors.add(new Processor(nextProcessorId, 20));
+            processors.add(new Processor(nextProcessorId, 104857600, 20));
         }
         acceptor.addProcessors(processors);
     }
