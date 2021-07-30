@@ -1,8 +1,7 @@
-package org.example.network;
+package org.example.common.network;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
@@ -66,6 +65,10 @@ public class NetworkReceive {
 
     public ByteBuffer payload() {
         return buffer;
+    }
+
+    public String getSource() {
+        return source;
     }
 
     public boolean completed() {

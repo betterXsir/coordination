@@ -1,4 +1,4 @@
-package org.example.network;
+package org.example.common.network;
 
 import org.example.expection.CoordinationException;
 

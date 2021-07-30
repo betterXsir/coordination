@@ -1,21 +1,16 @@
 package org.example.network;
 
-import org.example.expection.CoordinationException;
+import org.example.common.network.NetworkReceive;
 import org.example.utils.CoreUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
-import sun.nio.ch.Net;
-import sun.nio.cs.ext.ISO2022_CN;
 
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -28,7 +23,6 @@ public class Processor implements Runnable{
 
     private int nextConnectionIndex = 0;
     private ArrayBlockingQueue<SocketChannel> newConnections;
-    private LinkedHashMap<String, NetworkReceive> completedReceives;
     private LinkedBlockingQueue<Response> responseQueue;
 
     public Processor(int id, int requestMaxSize, int connectionQueueSize) {
@@ -36,11 +30,7 @@ public class Processor implements Runnable{
         this.requestMaxSize = requestMaxSize;
         newConnections = new ArrayBlockingQueue<SocketChannel>(connectionQueueSize);
         responseQueue = new LinkedBlockingQueue();
-        try {
-            selector = Selector.open();
-        } catch (IOException e) {
-            throw new CoordinationException(e);
-        }
+        this.selector = new Selector(requestMaxSize);
     }
 
     public Integer getId() {
@@ -63,7 +53,7 @@ public class Processor implements Runnable{
     }
 
     private void processCompletedReceive() {
-        for (Map.Entry<String, NetworkReceive> entry : completedReceives.entrySet()) {
+        for (Map.Entry<String, NetworkReceive> entry : selector.getCompletedReceives().entrySet()) {
             NetworkReceive receive = entry.getValue();
 
             // TODO: 2021/7/16 响应放入对应processor的响应队列
@@ -74,29 +64,7 @@ public class Processor implements Runnable{
         // TODO: 2021/6/26 selector select to get events and process
         try {
             int pollTimeout = newConnections.isEmpty() ? 300 : 0;
-            int numReadyKeys = selector.select(pollTimeout);
-            if (numReadyKeys > 0) {
-                // TODO: 2021/6/26 OP_CONNECT,OP_READ,OP_WRITE 以及 异常情况的DISCONNECTED
-                Set<SelectionKey> readyKeys = selector.selectedKeys();
-                // TODO: 2021/6/30 事件处理顺序
-                for (SelectionKey key : readyKeys) {
-                    // TODO: 2021/6/30 OP_CONNECT
-                    //if channel is ready and has bytes to read from socket, and has no previous
-                    //completed receive then read from it
-                    CoordinationChannel coordinationChannel = (CoordinationChannel) key.attachment();
-                    if (key.isReadable() && !completedReceives.containsKey(coordinationChannel.getId())) {
-                        long readBytes = coordinationChannel.read();
-                        if (readBytes > 0) {
-                            NetworkReceive completeReceive = coordinationChannel.maybeCompleteReceive();
-                            if (completeReceive != null) {
-                                //一个连接同时只能处理一个完整的请求，这取决于客户端使用阻塞式的发送方式，
-                                //客户端一个连接同时只能发送一个请求，响应后才能发送下一个
-                                completedReceives.put(coordinationChannel.getId(), completeReceive);
-                            }
-                        }
-                    }
-                }
-            }
+            selector.poll(pollTimeout);
         } catch (IOException e) {
             logger.error("Processor poll failed.", e);
         }
@@ -109,17 +77,11 @@ public class Processor implements Runnable{
             return;
         }
         try {
-            SelectionKey key = newConnection.register(selector, SelectionKey.OP_READ);
-            registerChannel(newConnection, key, connectionId(newConnection.socket()));
+            selector.registerChannel(newConnection, SelectionKey.OP_READ, connectionId(newConnection.socket()));
         } catch (Throwable e) {
             //close socket to avoid a socket leak
             CoreUtils.swallow(newConnection::close, logger, Level.ERROR);
         }
-    }
-
-    private void registerChannel(SocketChannel channel, SelectionKey key, String connectionId) {
-        CoordinationChannel coordinationChannel = new CoordinationChannel(connectionId, requestMaxSize, channel);
-        key.attach(coordinationChannel);
     }
 
     private String connectionId(Socket socket) {

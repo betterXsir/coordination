@@ -1,11 +1,12 @@
-package org.example.network;
+package org.example.requests;
 
+import org.example.common.network.NetworkSend;
 import org.example.protocol.ApiKeys;
-import org.example.requests.RequestHeader;
+import org.example.protocol.Struct;
 
 import java.nio.ByteBuffer;
 
-public class AbstractRequest {
+public abstract class AbstractRequest {
     private final ApiKeys api;
     private final short version;
 
@@ -26,8 +27,15 @@ public class AbstractRequest {
         return new NetworkSend(destination, serialize(header));
     }
 
+    protected abstract Struct toStruct();
+
     public ByteBuffer serialize(RequestHeader header) {
         // TODO: 2021/7/16
-        return null;
+        Struct headerStruct = header.toStruct();
+        Struct bodyStruct = this.toStruct();
+        ByteBuffer buffer = ByteBuffer.allocate(headerStruct.sizeOf() + bodyStruct.sizeOf());
+        headerStruct.writeTo(buffer);
+        bodyStruct.writeTo(buffer);
+        return buffer;
     }
 }
